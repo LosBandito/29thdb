@@ -204,9 +204,17 @@ class MilitaryDatabase:
 
     # Demerit Functions
 
-    def add_demerit_to_soldier(self, soldier_id, demerit_id, ):
-        now = datetime.now()
-        now = now.strftime("%m/%d/%Y, %H:%M:%S")
+    from datetime import datetime
+
+    def add_demerit_to_soldier(self, soldier_id, demerit_name, demerit_description=None, demerit_signature=None):
+        with self.conn:
+            cur = self.conn.cursor()
+            cur.execute(
+                "INSERT INTO demerits (demerit_name, demerit_description, demerit_signature) VALUES (?, ?, ?)",
+                (demerit_name, demerit_description, demerit_signature))
+            demerit_id = cur.lastrowid
+
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with self.conn:
             cur = self.conn.cursor()
             cur.execute(
@@ -235,14 +243,35 @@ class MilitaryDatabase:
             cur.execute(query, (soldier_id,))
             return cur.fetchall()
 
-
-    def get_all_demerits(self):
+    def get_all_soldier_demerits(self):
         with self.conn:
             cur = self.conn.cursor()
-            cur.execute("SELECT * FROM demerits")
+            query = """
+            SELECT s.id as soldier_id, s.name as soldier_name, 
+                   d.id as demerit_id, d.demerit_name, d.demerit_description, d.demerit_signature
+            FROM soldier_demerits sd
+            JOIN demerits d ON sd.demerit_id = d.id
+            JOIN soldiers s ON sd.soldier_id = s.id
+            """
+
+            cur.execute(query)
             return cur.fetchall()
 
+    def get_demerits_for_soldier(self, soldier_id):
+        with self.conn:
+            cur = self.conn.cursor()
 
+            query = """
+            SELECT s.id as soldier_id, s.name as soldier_name, 
+                   d.id as demerit_id, d.demerit_name, d.demerit_description, d.demerit_signature
+            FROM soldier_demerits sd
+            JOIN demerits d ON sd.demerit_id = d.id
+            JOIN soldiers s ON sd.soldier_id = s.id
+            WHERE s.id = ?
+            """
+
+            cur.execute(query, (soldier_id,))
+            return cur.fetchall()
 
     def close(self):
         self.conn.close()

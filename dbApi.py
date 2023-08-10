@@ -48,6 +48,7 @@ def remove_soldier():
     db.remove_soldier(data['id'])
     return '', 204
 
+
 @app.route('/soldiers/<int:unit_id>', methods=['GET'])
 def get_soldiers_by_unit(unit_id):
     db = get_db()
@@ -109,8 +110,54 @@ def get_all_awards():
 def add_demerit(soldier_id):
     db = get_db()
     data = request.get_json()
-    db.add_demerit_to_soldier(soldier_id, data['description'])
-    return '', 204
+    demerit_name = data.get('demerit_name')
+    demerit_description = data.get('demerit_description', None)
+    demerit_signature = data.get('demerit_signature', None)
+    db.add_demerit_to_soldier(soldier_id, demerit_name, demerit_description, demerit_signature)
+
+    return f'Demerit has ben added to {soldier_id}', 204
+
+
+@app.route('/demerits', methods=['GET'])
+def get_all_demerits():
+    db = get_db()
+
+    demerits_data = db.get_all_soldier_demerits()
+
+    response = []
+    for row in demerits_data:
+        response.append({
+            'soldier_id': row[0],
+            'soldier_name': row[1],
+            'demerit_id': row[2],
+            'demerit_name': row[3],
+            'demerit_description': row[4],
+            'demerit_signature': row[5]
+        })
+
+    return jsonify(response)
+
+
+@app.route('/demerits/<int:soldier_id>', methods=['GET'])
+def get_soldier_demerits(soldier_id):
+    db = get_db()
+
+    # Fetching demerits for the specified soldier
+    demerits_data = db.get_demerits_for_soldier(soldier_id)
+
+    # Creating a list of dictionaries for the response
+    response = []
+    for row in demerits_data:
+        response.append({
+            'soldier_id': row[0],
+            'soldier_name': row[1],
+            'demerit_id': row[2],
+            'demerit_name': row[3],
+            'demerit_description': row[4],
+            'demerit_signature': row[5]
+        })
+
+    return jsonify(response)
 
 
 if __name__ == '__main__':
