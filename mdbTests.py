@@ -143,6 +143,13 @@ class MilitaryDatabase:
             units = [dict(zip(["id", "name", "image"], row)) for row in cur.fetchall()]
             return units
 
+    def get_soldiers_by_unit(self, unit_id):
+        with self.conn:
+            cur = self.conn.cursor()
+            cur.execute("SELECT * FROM soldiers WHERE unit_id=?", (unit_id,))
+            return [dict(zip(["id", "name", "age", "address", "rank", "ait", "unit_id"], row)) for row in
+                    cur.fetchall()]
+
     def update_unit_image(self, unit_id, new_image):
         with self.conn:
             cur = self.conn.cursor()

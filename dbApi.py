@@ -32,6 +32,18 @@ def get_units_by_parent(parent_unit_id):
     units = db.retrieve_units_by_parent(parent_unit_id)
     return jsonify(units)
 
+@app.route('/allunitsandsoldiers', methods=['GET'])
+def get_all_units_and_soldiers():
+    db = get_db()
+    units = db.retrieve_all_units()
+
+    # For each unit, get the soldiers assigned to it
+    for unit in units:
+        unit_id = unit['id']
+        unit['soldiers'] = db.get_soldiers_by_unit(unit_id)
+
+    return jsonify(units)
+
 
 @app.route('/soldier', methods=['POST'])
 def add_soldier():
