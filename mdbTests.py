@@ -1,7 +1,7 @@
 import random
 import sqlite3
 from datetime import datetime
-
+import names
 
 class MilitaryDatabase:
     def __init__(self, db_name):
@@ -11,18 +11,20 @@ class MilitaryDatabase:
         with self.conn:
             # Soldiers table
             self.conn.execute("""
-                CREATE TABLE IF NOT EXISTS soldiers (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    age INTEGER NOT NULL,
-                    address TEXT NOT NULL,
-                    rank TEXT NOT NULL,
-                    ait TEXT NOT NULL,
-                    unit_id INTEGER,
-                    leadership INTEGER DEFAULT 0,
-                    FOREIGN KEY (unit_id) REFERENCES units (id)
-                )
-            """)
+                       CREATE TABLE IF NOT EXISTS soldiers (
+                           id INTEGER PRIMARY KEY,
+                           name TEXT NOT NULL,
+                           age INTEGER NOT NULL,
+                           country TEXT NOT NULL,
+                           address TEXT NOT NULL,
+                           rank TEXT NOT NULL,
+                           ait TEXT NOT NULL,
+                           unit_id INTEGER,
+                           leadership INTEGER DEFAULT 0,
+                           `date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                           FOREIGN KEY (unit_id) REFERENCES units (id)
+                       )
+                   """)
 
             self.conn.execute("""
                        CREATE TABLE IF NOT EXISTS awards (
@@ -103,12 +105,14 @@ class MilitaryDatabase:
             cur.execute("SELECT * FROM units WHERE parent_unit_id=?", (parent_unit_id,))
             return cur.fetchall()
 
-    def add_soldier(self, name, age, address, rank, ait, unit_id, leadership):
+    def add_soldier(self, name, age, country, address, rank, ait, unit_id, leadership):
         with self.conn:
             cur = self.conn.cursor()
+            # Fix the mismatch order and remove the extra comma
             cur.execute(
-                "INSERT INTO soldiers (name, age, address, rank, ait, unit_id, leadership) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (name, age, address, rank, ait, unit_id, int(leadership)))
+                "INSERT INTO soldiers (name, age, country, address, rank, ait, unit_id, leadership) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (name, age, country, address, rank, ait, unit_id, int(leadership))
+            )
             return cur.lastrowid
 
     def remove_soldier(self, soldier_id):
@@ -147,7 +151,7 @@ class MilitaryDatabase:
         with self.conn:
             cur = self.conn.cursor()
             cur.execute("SELECT * FROM soldiers WHERE unit_id=?", (unit_id,))
-            return [dict(zip(["id", "name", "age", "address", "rank", "ait", "unit_id"], row)) for row in
+            return [dict(zip(["id", "name", "age","country", "address", "rank", "ait", "unit_id"], row)) for row in
                     cur.fetchall()]
 
     def update_unit_image(self, unit_id, new_image):
@@ -296,8 +300,8 @@ class MilitaryUnit:
 
     def add_soldier(self, soldier):
         self.soldiers.append(soldier)
-        soldier_id = self.db.add_soldier(soldier.name, soldier.age, soldier.address, soldier.rank, soldier.ait, self.id,
-                                         soldier.leadership)
+        soldier_id = self.db.add_soldier(soldier.name, soldier.age,soldier.country, soldier.address, soldier.rank, soldier.ait, self.id,
+                                         soldier.leadership,)
 
     def get_subordinate_units(self):
         return self.db.retrieve_units_by_parent(self.id)
@@ -383,7 +387,7 @@ class Squad(MilitaryUnit):
 
 class Profile:
     def __init__(self, name, age, address, id=random.randint(0, 100000), rank="Private", ait="Rifle", company=None,
-                 platoon=None, squad=None, battalion=None, leadership=None, awards=None):
+                 platoon=None, squad=None, battalion=None, leadership=None, awards=None,country=None):
         self.id = id
         self.name = name
         self.age = age
@@ -397,6 +401,7 @@ class Profile:
         self.battalion = battalion
         self.leadership = leadership
         self.awards = awards
+        self.country = country
 
     def __str__(self):
         assignment = f"Assigment: {self.battalion or '-'} {self.company or '-'} {self.platoon or '-'} {self.squad or '-'}"
@@ -465,27 +470,12 @@ class ProfileManager:
                 print("Demerit added")
 
 
-names = ["John", "Sam", "Jack", "Jill", "Mike", "Anna", "Chris", "Ella", "David", "Sophia",
-         "Ryan", "Grace", "Brian", "Chloe", "Dylan", "Ava", "Ethan", "Emma", "Mason", "Olivia"]
-
-addresses = ["123 Elm St", "456 Maple Ave", "789 Oak Dr", "101 Pine Rd", "202 Birch Ln"]
 
 ranks = ["Private", "Private First Class", "Corporal", "Sergeant", "Staff Sergant", "Master Sergant",
          "Second Lieutenant", "First Lieutenant", "Captain", "Major", "Colonel", ]
 
 aits = ["AR", "CE", "GL", "Rifle", "Crewman"]
 
-# Generate a list of 20 soldiers
-soldiers = [
-    Profile(
-        name=random.choice(names),
-        age=random.randint(20, 40),
-        address=random.choice(addresses),
-        rank=random.choice(ranks),
-        ait=random.choice(aits)
-    )
-    for _ in range(20)
-]
 
 # Initialize the database and create tables
 db = MilitaryDatabase('29awards.db')
@@ -635,13 +625,20 @@ awards = [['Distinguished Service Cross',
            'https://uploads.29th.org/personnel/award/sq/ribbon_image/abe20ea562874945cb1817ffa4166948.gif', None],
           ['Blue Infantry Cord', 'Awarded for a $10 Recurring Donation', None, None]]
 
+addresses = ["123 Elm St", "456 Maple Ave", "789 Oak Dr", "101 Pine Rd", "202 Birch Ln", "305 Cedar Pl",
+             "608 Willow Way", "902 Redwood Rise", "104 Spruce Blvd", "711 Chestnut Ct", "312 Aspen Grv",
+             "514 Juniper Jct", "609 Palm Pkwy", "812 Fir St", "930 Teak Ter"]
+
+
+countires=["US","UK","CZ","DE","FR","RU","CA","AU","NZ","NL","BE","DK","NO","SE","FI","PL","IT","ES","PT","GR","TR","HU","RO","BG","HR","RS","BA","MK","SI","SK","UA","BY","LT","LV","EE","KZ","CN","JP","KR","TW","VN","TH","PH","MY","SG","IN","PK","AF","IR","IQ","SA","AE","OM","QA","KW","BH","LB","IL","SY","JO","EG","LY","TN","DZ","MA","SD","ET","KE","TZ","UG","RW","BI","MZ","MW","ZM","ZW","NA","BW","LS","SZ","MG","MU","RE","YT","SC","SO","DJ","ER","SS","AO","GA","CG","CD","CM","CF","TD","GN","CI","ML","NE","BF","SN","MR","GW","BJ","ST","GQ","CV","ES-CE","ES-CN","ES-EX","ES-GA","ES-MD","ES-ML","ES-MC","ES-NC","ES-PV","ES-RI","ES-VI","ES-VC","ES-AN","ES-AR","ES-AS","ES-CB","ES-CL","ES-CM","ES-CR","ES-CT","ES-EXT","ES-IB","ES-LO","ES-LU","ES-MU","ES-NA","ES-OR","ES-PM","ES-TF","ES-VC","ES-ML","ES-MC","ES-NC","ES-PV","ES-RI","ES-VI","ES-VC","ES-AN","ES-AR","ES-AS","ES-CB","ES-CL","ES-CM","ES-CR","ES-CT","ES-EXT","ES-IB","ES-LO","ES-LU","ES-MU","ES-NA","ES-OR","ES-PM","ES-TF","ES-VC","ES-ML","ES-MC","ES-NC","ES-PV","ES-RI","ES-VI","ES-VC","ES-AN","ES-AR","ES-AS","ES-CB","ES-CL","ES-CM","ES-CR","ES-CT","ES-EXT","ES"]
+
 # Generate the hierarchy
 battalion_names = ["1st Battalion", "2nd Battalion"]
 company_names = ["Easy", "Charlie", "Fox", "Dog"]
 image = "https://placehold.co/600x400"
 inc = 0
-
 """
+
 for award in awards:
     db.create_award(awards[inc][0], awards[inc][1], awards[inc][2], awards[inc][3])
     inc += 1
@@ -651,22 +648,24 @@ for battalion_name in battalion_names:
     battalion = Battalion(battalion_name, db, image)
     # Add 1-2 leaders for each battalion
     for _ in range(random.randint(1, 2)):
-        soldier_name = random.choice(first_names) + " " + random.choice(last_names)
+        soldier_name = names.get_full_name()
+        is_leader = 1
         is_leader = 1
         soldier = Profile(name=soldier_name, age=random.randint(20, 40),
-                          address=random.choice(addresses), rank=random.choice(ranks),
-                          ait=random.choice(aits), leadership=is_leader)
+                                  address=random.choice(addresses), rank=random.choice(ranks),
+                                  ait=random.choice(aits), leadership=is_leader, country=random.choice(countires))
+
         battalion.add_soldier(soldier)
 
     for company_name in company_names:
         company = Company(company_name, db, image, battalion.id)
         # Add 1-2 leaders for each company
         for _ in range(random.randint(1, 2)):
-            soldier_name = random.choice(first_names) + " " + random.choice(last_names)
+            soldier_name = names.get_full_name()
             is_leader = 1
             soldier = Profile(name=soldier_name, age=random.randint(20, 40),
                               address=random.choice(addresses), rank=random.choice(ranks),
-                              ait=random.choice(aits), leadership=is_leader)
+                              ait=random.choice(aits), leadership=is_leader, country=random.choice(countires))
             company.add_soldier(soldier)
 
         for platoon_num in range(1, 5):  # 4 platoons per company
@@ -674,11 +673,11 @@ for battalion_name in battalion_names:
             platoon = Platoon(platoon_name, db, image, company.id)
             # Add 1-2 leaders for each platoon
             for _ in range(random.randint(1, 2)):
-                soldier_name = random.choice(first_names) + " " + random.choice(last_names)
+                soldier_name = names.get_full_name()
                 is_leader = 1
                 soldier = Profile(name=soldier_name, age=random.randint(20, 40),
                                   address=random.choice(addresses), rank=random.choice(ranks),
-                                  ait=random.choice(aits), leadership=is_leader)
+                                  ait=random.choice(aits), leadership=is_leader, country=random.choice(countires))
                 platoon.add_soldier(soldier)
 
             for squad_num in range(1, 5):  # 4 squads per platoon
@@ -687,11 +686,12 @@ for battalion_name in battalion_names:
 
                 # For the sake of this example, let's assign 10 soldiers to each squad
                 for i in range(1, 11):
-                    soldier_name = random.choice(first_names) + " " + random.choice(last_names)
+                    soldier_name = names.get_full_name()
                     # Make the first soldier in each squad a leader
                     is_leader = i == 1
                     soldier = Profile(name=soldier_name, age=random.randint(20, 40),
                                       address=random.choice(addresses), rank=random.choice(ranks),
-                                      ait=random.choice(aits), leadership=is_leader)
+                                      ait=random.choice(aits), leadership=is_leader, country=random.choice(countires))
                     squad.add_soldier(soldier)
+
 """
